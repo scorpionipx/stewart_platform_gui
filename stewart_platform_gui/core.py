@@ -1,16 +1,25 @@
+import math
 import sys
+
+from pathlib import Path
 
 from threading import Thread
 from time import sleep
 
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QSlider
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QTransform
 
 
 from stewart_platform_gui import LOGGER
 from stewart_platform_gui.settings import SETTINGS
+from stewart_platform_gui.utils.gui.widgets.servo import Servo
 
 from stewart_platform_gui.stm_driver import STMDriver
+
+IMG_DIR = Path(__file__).parent.joinpath('utils').joinpath('img')
+SERVO_ON_IMG = IMG_DIR.joinpath('servo_sq_on.png')
+SERVO_OFF_IMG = IMG_DIR.joinpath('servo_sq_off.png')
 
 
 class StewartPlatformGUI(QMainWindow):
@@ -28,10 +37,22 @@ class StewartPlatformGUI(QMainWindow):
         self.__set_status('Ready')
 
         self.value = 90
-        self.__refresh_rate = 0.2
+        self.__refresh_rate = 0.001
         self.control_thread_enabled = False
         self.__init_gui()
-    
+
+        self.__buffer = []
+
+        self.load_csv('')
+
+    def load_csv(self, csv):
+        csv = r"C:\Users\ScorpionIPX\Desktop\servo_dummy_data.csv"
+        with open(csv, 'r') as fh:
+            content = fh.read()
+        for index, line in enumerate(content.split()[1:]):
+            self.__buffer.extend(map(int, line.split(',')))
+        print(self.__buffer)
+
     def __init_gui(self):
         """
         __init_gui
@@ -48,47 +69,94 @@ class StewartPlatformGUI(QMainWindow):
 
         servo_holder = QLabel(self)
         servo_holder.setScaledContents(True)
-        servo_holder.resize(500, 500)
-        servo_holder.setPixmap(QPixmap(r"D:\projects\stewart_platform_gui\stewart_platform_gui\utils\imgs\holder.png"))
+        servo_holder.resize(SETTINGS['holder']['size'], SETTINGS['holder']['size'])
+        servo_holder_pixmap = QPixmap(r"D:\projects\stewart_platform_gui\stewart_platform_gui\utils\img\holder.png")
+        servo_holder.setPixmap(servo_holder_pixmap)
         servo_holder.move(
-            (SETTINGS['width'] - servo_holder.width()) // 2,
+            40,
             (SETTINGS['height'] - servo_holder.height()) // 2 + self.status_label.height() // 2
         )
         servo_holder.show()
 
-        slider = QSlider(self)
-        slider.setRange(0, 180)
-        slider.setValue(90)
-        slider.resize(40, 400)
-        slider.move(1100, 100)
-        slider.valueChanged.connect(self.slider_value_changed)
-        slider.show()
+        scale = int(SETTINGS['servo']['size']/math.sqrt(2))
+        servo_on_pixmap = QPixmap(SERVO_ON_IMG.as_posix()).scaled(scale, scale)
+        servo_off_pixmap = QPixmap(SERVO_OFF_IMG.as_posix()).scaled(scale, scale)
 
-        self.servo_1 = QLabel(self)
-        self.servo_1.setScaledContents(True)
-        self.servo_1.resize(100, 220)
-        self.servo_1.setPixmap(QPixmap(r"D:\projects\stewart_platform_gui\stewart_platform_gui\utils\imgs\servo.png"))
-        self.servo_1.move((SETTINGS['width'] - self.servo_1.width()) // 2, 100)
-        self.servo_1.show()
+        self.servo_1 = Servo(
+            parent=self,
+            servo_holder=servo_holder,
+            rotation_angle=0,
+            on_pixmap=servo_on_pixmap,
+            off_pixmap=servo_off_pixmap,
+            uid=1,
+        )
 
-        servo_1_label = QLabel(self.servo_1)
-        servo_1_label.move(12, 100)
-        servo_1_label.resize(80, 30)
-        servo_1_label.setStyleSheet("QLabel {color: '#BABBBB'; font-weight: bold; font-size: 24px}")
-        servo_1_label.setText('   S1')
-        servo_1_label.show()
+        self.servo_2 = Servo(
+            parent=self,
+            servo_holder=servo_holder,
+            rotation_angle=60,
+            on_pixmap=servo_on_pixmap,
+            off_pixmap=servo_off_pixmap,
+            uid=2,
+        )
 
-        servo_1_angle_label = QLabel(self.servo_1)
-        servo_1_angle_label.move(10, 170)
-        servo_1_angle_label.resize(80, 30)
-        servo_1_angle_label.setStyleSheet("QLabel {color: '#BABBBB'}")
-        servo_1_angle_label.setText('     N/A')
-        servo_1_angle_label.show()
-        self.servo_1.servo_1_angle_label = servo_1_angle_label
+        self.servo_3 = Servo(
+            parent=self,
+            servo_holder=servo_holder,
+            rotation_angle=120,
+            on_pixmap=servo_on_pixmap,
+            off_pixmap=servo_off_pixmap,
+            uid=3,
+        )
 
-        self.stm_driver = STMDriver(com_port='COM3')
+        self.servo_4 = Servo(
+            parent=self,
+            servo_holder=servo_holder,
+            rotation_angle=180,
+            on_pixmap=servo_on_pixmap,
+            off_pixmap=servo_off_pixmap,
+            uid=4,
+        )
 
-        self.stm_driver.send_bytes(bytearray('1=100', encoding='utf-8'))
+        self.servo_5 = Servo(
+            parent=self,
+            servo_holder=servo_holder,
+            rotation_angle=240,
+            on_pixmap=servo_on_pixmap,
+            off_pixmap=servo_off_pixmap,
+            uid=5,
+        )
+
+        self.servo_6 = Servo(
+            parent=self,
+            servo_holder=servo_holder,
+            rotation_angle=300,
+            on_pixmap=servo_on_pixmap,
+            off_pixmap=servo_off_pixmap,
+            uid=6,
+        )
+
+        self.slider = QSlider(self)
+        self.slider.setRange(0, 180)
+        self.slider.setValue(90)
+        self.slider.resize(80, 800)
+        self.slider.move(SETTINGS['width'] - self.slider.width() * 2, 100)
+        self.slider.valueChanged.connect(self.slider_value_changed)
+        self.slider.show()
+        slider_label = QLabel(self)
+        slider_label.resize(40, 40)
+        slider_label.move(self.slider.x(), self.slider.y() + self.slider.height() + 20)
+        slider_label.setText('090')
+        slider_label.show()
+        self.slider.label = slider_label
+
+        self.stm_driver = STMDriver(com_port='COM4')
+        self.stm_driver.send_bytes(bytearray('1=000', encoding='utf-8'))
+        self.stm_driver.send_bytes(bytearray('2=000', encoding='utf-8'))
+        self.stm_driver.send_bytes(bytearray('3=000', encoding='utf-8'))
+        self.stm_driver.send_bytes(bytearray('4=000', encoding='utf-8'))
+        self.stm_driver.send_bytes(bytearray('5=000', encoding='utf-8'))
+        self.stm_driver.send_bytes(bytearray('6=000', encoding='utf-8'))
 
         self.start_control_thread()
 
@@ -97,6 +165,7 @@ class StewartPlatformGUI(QMainWindow):
         slider_value_changed
         """
         self.value = int(value)
+        self.slider.label.setText(f'{self.value:03d}')
 
     def start_control_thread(self):
         self.control_thread_enabled = True
@@ -104,14 +173,31 @@ class StewartPlatformGUI(QMainWindow):
         thread.start()
 
     def control_thread(self):
+        sleep(2)
+        # return
         loop_counter = 0
+        buffer_index = 0
+        buffer_len = len(self.__buffer)
         while True:
             loop_counter += 1
-            cmd = bytearray(f'1={self.value:03d}', encoding='utf-8')
-            self.stm_driver.send_bytes(cmd)
-            self.__set_status(f'1={self.value:03d}')
-            self.servo_1.servo_1_angle_label.setText(f'     {self.value:03d}')
-            sleep(self.__refresh_rate)
+            for servo in Servo.__all__:
+                servo: Servo
+                val = self.__buffer[buffer_index] * 2
+                if val > 180:
+                    val //= 2
+                cmd = bytearray(f'{servo.uid}={self.__buffer[buffer_index]:03d}', encoding='utf-8')
+                buffer_index += 1
+                if buffer_index >= buffer_len:
+                    buffer_index = 0
+
+                self.stm_driver.send_bytes(cmd)
+                sleep(.0001)
+                # if servo.state:
+                #     cmd = bytearray(f'{servo.uid}={self.value:03d}', encoding='utf-8')
+                #     self.stm_driver.send_bytes(cmd)
+                #     sleep(.001)
+            self.__set_status(f'{loop_counter:08d}')
+            # sleep(self.__refresh_rate)
 
     def __set_status(self, text, level=None):
         """
