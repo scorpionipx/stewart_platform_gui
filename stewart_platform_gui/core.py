@@ -51,7 +51,6 @@ class StewartPlatformGUI(QMainWindow):
             content = fh.read()
         for index, line in enumerate(content.split()[1:]):
             self.__buffer.extend(map(int, line.split(',')))
-        print(self.__buffer)
 
     def __init_gui(self):
         """
@@ -151,12 +150,6 @@ class StewartPlatformGUI(QMainWindow):
         self.slider.label = slider_label
 
         self.stm_driver = STMDriver(com_port='COM4')
-        self.stm_driver.send_bytes(bytearray('1=000', encoding='utf-8'))
-        self.stm_driver.send_bytes(bytearray('2=000', encoding='utf-8'))
-        self.stm_driver.send_bytes(bytearray('3=000', encoding='utf-8'))
-        self.stm_driver.send_bytes(bytearray('4=000', encoding='utf-8'))
-        self.stm_driver.send_bytes(bytearray('5=000', encoding='utf-8'))
-        self.stm_driver.send_bytes(bytearray('6=000', encoding='utf-8'))
 
         self.start_control_thread()
 
@@ -180,24 +173,37 @@ class StewartPlatformGUI(QMainWindow):
         buffer_len = len(self.__buffer)
         while True:
             loop_counter += 1
-            for servo in Servo.__all__:
-                servo: Servo
-                val = self.__buffer[buffer_index] * 2
-                if val > 180:
-                    val //= 2
-                cmd = bytearray(f'{servo.uid}={self.__buffer[buffer_index]:03d}', encoding='utf-8')
-                buffer_index += 1
-                if buffer_index >= buffer_len:
-                    buffer_index = 0
+            cmd_bytes = [182, ]
+            cmd_bytes.extend(self.__buffer[buffer_index:buffer_index+6])
+            buffer_index += 6
+            if buffer_index >= buffer_len:
+                buffer_index = 0
 
-                self.stm_driver.send_bytes(cmd)
-                sleep(.0001)
-                # if servo.state:
-                #     cmd = bytearray(f'{servo.uid}={self.value:03d}', encoding='utf-8')
-                #     self.stm_driver.send_bytes(cmd)
-                #     sleep(.001)
-            self.__set_status(f'{loop_counter:08d}')
-            # sleep(self.__refresh_rate)
+            cmd = bytearray(cmd_bytes)
+            # for b in cmd_bytes:
+            #     print(hex(b))
+            self.stm_driver.send_bytes(cmd)
+
+
+            # for servo in Servo.__all__:
+            #     servo: Servo
+            #     val = self.__buffer[buffer_index] * 2
+            #     if val > 180:
+            #         val //= 2
+            #     cmd = bytearray(f'{servo.uid}={self.__buffer[buffer_index]:03d}', encoding='utf-8')
+            #     buffer_index += 1
+            #     if buffer_index >= buffer_len:
+            #         buffer_index = 0
+            #
+            #     self.stm_driver.send_bytes(cmd)
+            #     sleep(.0001)
+            #     # if servo.state:
+            #     #     cmd = bytearray(f'{servo.uid}={self.value:03d}', encoding='utf-8')
+            #     #     self.stm_driver.send_bytes(cmd)
+            #     #     sleep(.001)
+            # self.__set_status(f'{loop_counter:08d}')
+            sleep(self.__refresh_rate)
+            # input('press any key to go to the next loop')  # TODO: remove e after HW fix
 
     def __set_status(self, text, level=None):
         """
