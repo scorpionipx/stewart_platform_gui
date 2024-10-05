@@ -46,7 +46,7 @@ class StewartPlatformGUI(QMainWindow):
         self.load_csv('')
 
     def load_csv(self, csv):
-        csv = r"C:\Users\ScorpionIPX\Desktop\servo_dummy_data.csv"
+        csv = Path(__file__).parent.joinpath('utils').joinpath('csv').joinpath('servo_dummy_data.csv')
         with open(csv, 'r') as fh:
             content = fh.read()
         for index, line in enumerate(content.split()[1:]):
